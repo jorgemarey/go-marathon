@@ -139,6 +139,12 @@ type Marathon interface {
 	Leader() (string, error)
 	/* cause the current leader to abdicate */
 	AbdicateLeader() (string, error)
+
+	/* --- EVENTS --- */
+
+	ListenEvents() error
+
+	GetEvents() chan map[string]interface{}
 }
 
 var (
@@ -176,6 +182,8 @@ type Client struct {
 	cluster Cluster
 	/* a map of service you wish to listen to */
 	listeners map[EventsChannel]int
+	/* channel of events */
+	Events chan map[string]interface{}
 }
 
 type Message struct {
@@ -200,6 +208,7 @@ func NewClient(config Config) (Marathon, error) {
 		service.http = &http.Client{
 			Timeout: (time.Duration(config.RequestTimeout) * time.Second),
 		}
+		service.Events = make(chan map[string]interface{})
 		return service, nil
 	}
 }
@@ -368,4 +377,8 @@ func (client *Client) httpCall(method, uri, body string) (int, string, *http.Res
 
 func (client *Client) log(message string, args ...interface{}) {
 	client.logger.Printf(message+"\n", args...)
+}
+
+func (client *Client) GetEvents() chan map[string]interface{} {
+	return client.Events
 }

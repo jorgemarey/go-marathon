@@ -22,6 +22,7 @@ const (
 	/* --- api related constants --- */
 	MARATHON_API_VERSION      = "v2"
 	MARATHON_API_SUBSCRIPTION = MARATHON_API_VERSION + "/eventSubscriptions"
+	MARATHON_API_EVENTS       = MARATHON_API_VERSION + "/events"
 	MARATHON_API_APPS         = MARATHON_API_VERSION + "/apps"
 	MARATHON_API_TASKS        = MARATHON_API_VERSION + "/tasks"
 	MARATHON_API_DEPLOYMENTS  = MARATHON_API_VERSION + "/deployments"

@@ -16,7 +16,12 @@ limitations under the License.
 
 package marathon
 
-import "fmt"
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
 
 type EventType struct {
 	EventType string `json:"eventType"`
@@ -241,4 +246,31 @@ type EventDeploymentStepFailure struct {
 	CurrentStep *DeploymentStep `json:"currentStep"`
 	Timestamp   string          `json:"timestamp"`
 	Plan        *DeploymentPlan `json:"plan"`
+}
+
+func (client *Client) ListenEvents() error {
+	if marathon, err := client.Leader(); err != nil {
+		return err
+	} else {
+		httpClient := &http.Client{}
+		url := fmt.Sprintf("%s/%s", "http://"+marathon, MARATHON_API_EVENTS)
+		req, err := http.NewRequest(HTTP_GET, url, nil)
+		req.Header.Set("Accept", "text/event-stream")
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		reader := bufio.NewReader(resp.Body)
+		go func() {
+			for {
+				line, _ := reader.ReadBytes('\n')
+				if len(line) != 2 {
+					var data map[string]interface{}
+					json.Unmarshal(line[6:len(line)-2], &data)
+					client.Events <- data
+				}
+			}
+		}()
+	}
+	return nil
 }
