@@ -249,28 +249,38 @@ type EventDeploymentStepFailure struct {
 }
 
 func (client *Client) ListenEvents() error {
-	if marathon, err := client.Leader(); err != nil {
+	var (
+		marathon string
+		err      error
+		req      *http.Request
+		resp     *http.Response
+	)
+	// can't use apiCall() because the request needs to be made to the leader and the Accept header is not json
+	// some refactor could be useful
+	if marathon, err = client.Leader(); err != nil {
 		return err
-	} else {
-		httpClient := &http.Client{}
-		url := fmt.Sprintf("%s/%s", "http://"+marathon, MARATHON_API_EVENTS)
-		req, err := http.NewRequest(HTTP_GET, url, nil)
-		req.Header.Set("Accept", "text/event-stream")
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			return err
-		}
-		reader := bufio.NewReader(resp.Body)
-		go func() {
-			for {
-				line, _ := reader.ReadBytes('\n')
-				if len(line) != 2 {
-					var data map[string]interface{}
-					json.Unmarshal(line[6:len(line)-2], &data)
-					client.Events <- data
-				}
-			}
-		}()
 	}
+	url := fmt.Sprintf("http://%s/%s", marathon, MARATHON_API_EVENTS)
+	httpClient := &http.Client{}
+	if req, err = http.NewRequest(HTTP_GET, url, nil); err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	if resp, err = httpClient.Do(req); err != nil {
+		return err
+	}
+	client.log("listening events from %s", marathon)
+	reader := bufio.NewReader(resp.Body)
+	go func() {
+		for {
+			line, _ := reader.ReadBytes('\n')
+			if len(line) > 2 {
+				data := make(map[string]interface{})
+				// all events start with "data: " and ends with "\r\n"
+				json.Unmarshal(line[6:len(line)-2], &data)
+				client.Events <- data
+			}
+		}
+	}()
 	return nil
 }
